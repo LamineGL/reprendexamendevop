@@ -1,0 +1,52 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Déclenchement du pipeline uniquement sur la branche principale
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest  
+
+    steps:
+      - name: Récupérer le code source du repository
+        uses: actions/checkout@v3 
+
+      - name: Vérifier les fichiers récupérés
+        run: ls -la  # Vérifie que le code a bien été récupéré dans l'environnement CI/CD
+
+      - name: Se connecter à DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Construire l'image Docker avec un tag unique
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d')
+          BUILD_TAG="onlybettermld/mon-examen-mld:$TIMESTAMP-${{ github.run_number }}"
+          
+          echo " Building Docker image..."
+          docker build -t onlybettermld/mon-examen-mld:latest .
+          docker tag onlybettermld/mon-examen-mld:latest $BUILD_TAG
+
+          echo " Image built successfully: $BUILD_TAG"
+
+      - name: Pousser l'image Docker sur DockerHub
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d')
+          BUILD_TAG="onlybettermld/mon-examen-mld:$TIMESTAMP-${{ github.run_number }}"
+
+          echo "Pushing Docker images to DockerHub..."
+          docker push onlybettermld/mon-examen-mld:latest
+          docker push $BUILD_TAG
+
+          echo "Docker images pushed successfully!"
+
+      - name: Nettoyer l'environnement Docker après le build
+        run: |
+          echo "🧹 Cleaning up local Docker images..."
+          docker rmi onlybettermld/mon-examen-mld:latest || true
+          docker rmi $(docker images -q "onlybettermld/mon-examen-mld") || true
+          echo " Cleanup done!"
